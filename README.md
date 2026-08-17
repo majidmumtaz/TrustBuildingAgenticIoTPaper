@@ -195,4 +195,8 @@ The framework automatically reports:
 3. **Cliff’s Delta ($\delta$)**: Non-parametric effect size quantifying the magnitude of difference between baselines (positive values indicate relative improvement).
 
 
+<<<<<<< HEAD
 4. **Metric Breakdown**: Summarized global and per-category stats across Attack Success Rate (ASR), Privacy Leakage Rate (PLR), Task Utility (TU), Trust Convergence Rounds, and Communication Overhead (latency in ms).
+=======
+4. **Metric Breakdown**: Summarized global and per-category stats across Attack Success Rate (ASR), Privacy Leakage Rate (PLR), Task Utility (TU), Trust Convergence Rounds, and Communication Overhead (latency in ms).
+>>>>>>> 7e692943d234451397a6f539ae16328496639c88
