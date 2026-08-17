@@ -1,98 +1,198 @@
-Algorithm: Multi-Agent Security Evaluation
-==========================================
-Require:
-    - Configuration list C = {B1_unhardened, B2_best_practice, B3_ARGUS}
-    - Attack corpus A = {a_1, a_2, ..., a_N}, N ≈ 450
-    - Number of trials T = 30
-    - Function HUMAN_RATERS(output) → (r1,r2,r3) ∈ {1..5}^3
+# Verifiable Trust Framework for Multi-Agent IoT Systems
 
-Ensure:
-    - Trial results R[c][a] = list of metric dicts per trial
-    - Krippendorff's α across all auditability scores
-    - For each scalar metric m:
-        - Adjusted p-values for Wilcoxon tests on config pairs
-        - Cliff's δ effect sizes
-        - Holm-Bonferroni significance flags
+A standardized benchmarking suite and experimental framework for evaluating trust, safety, and security mechanisms across heterogeneous multi-agent systems (MAS) interacting via the Model Context Protocol (MCP).
 
-1:  procedure RUN_EXPERIMENT(C, A, T)
-2:      R ← {}  // results dictionary
-3:      all_audit_ratings ← []
-4:
-5:      for each config c ∈ C do
-6:          for each attack a ∈ A do
-7:              trial_scores ← []
-8:              for t ← 1 to T do
-9:                  seed ← RANDOM(0, 999999)
-10:                 rng ← RANDOM_GENERATOR(seed)
-11:
-12:                 //  Testbed initialisation
-13:                 INIT_AGENTS(c.frameworks, c.models, seed)  // TODO: real init
-14:                 START_MCP_SERVERS(a.tools_involved, seed)
-15:
-16:                 //  Attack execution & metric collection
-17:                 outcome ← EXECUTE_ATTACK(a.prompt, a.target_agent, c)
-18:                 asr ← outcome.success ? 1 : 0
-19:                 plr ← outcome.pii_leaked ? 1 : 0
-20:                 tu ← BENIGN_TASK_SUCCESS(c) ? 1 : 0
-21:                 latencies ← outcome.message_latencies  // list of ms
-22:                 trust_rounds ← TRUST_CONVERGENCE(c, a) // integer
-23:                 ratings ← HUMAN_RATERS(outcome.output) // 3 integers
-24:
-25:                 metrics ← {ASR: asr, PLR: plr, TU: tu,
-26:                            latencies: latencies,
-27:                            trust_rounds: trust_rounds,
-28:                            auditability_ratings: ratings}
-29:                 trial_scores.append(metrics)
-30:                 all_audit_ratings.append(ratings)
-31:             end for
-32:             R[(c, a.id)] ← trial_scores
-33:         end for
-34:     end for
-35:     return R, all_audit_ratings
-36: end procedure
-37:
-38: procedure KRIPPENDORFF_ALPHA(all_ratings)
-39:     data ← TRANSPOSE(all_ratings)   // shape (3, N_items)
-40:     α ← krippendorff.alpha(data, level='ordinal')
-41:     return α
-42: end procedure
-43:
-44: procedure STATISTICAL_TESTS(R, attack_ids, config_pairs, metric_key)
-45:     p_vals ← [], δ_vals ← [], test_ids ← []
-46:     for each a ∈ attack_ids do
-47:         for each (c1, c2) ∈ config_pairs do
-48:             x ← [trial[metric_key] for trial in R[(c1, a)]]
-49:             y ← [trial[metric_key] for trial in R[(c2, a)]]
-50:             _, p ← WILCOXON(x, y)          // paired
-51:             δ ← CLIFF_DELTA(y, x)          // positive = c2 improves over c1
-52:             p_vals.append(p)
-53:             δ_vals.append(δ)
-54:             test_ids.append((a, c1, c2))
-55:         end for
-56:     end for
-57:     reject, adj_p, _, _ ← HOLM_BONFERRONI(p_vals, α=0.05)
-58:     return test_ids, adj_p, δ_vals, reject
-59: end procedure
-60:
-61: //  Main
-62: C ← {B1, B2, B3}
-63: A ← GENERATE_ATTACK_CORPUS(50 per category)   // ≈ 450 attacks
-64: R, audit_data ← RUN_EXPERIMENT(C, A, T=30)
-65: α ← KRIPPENDORFF_ALPHA(audit_data)
-66: Print("Krippendorff's α:", α)
-67:
-68: for each metric m ∈ {ASR, PLR, TU, trust_rounds} do
-69:     test_ids, adj_p, δ, reject ← STATISTICAL_TESTS(R, attack_ids,
-70:                         {(B1,B2), (B1,B3)}, m)
-71:     aggregate by category and print summaries
-72: end for
-73:
-74: // Communication overhead: compare median latency per trial
-75: for each pair (B1,B2) and (B1,B3) do
-76:     for each a ∈ A do
-77:         med1 ← [median(trial['latencies']) for trial in R[(B1,a)]]
-78:         med2 ← [median(trial['latencies']) for trial in R[(B2/B3,a)]]
-79:         p, δ ← WILCOXON(med1, med2), CLIFF_DELTA(med2, med1)
-80:         print p, δ
-81:     end for
-82: end for
+This project provides end-to-end tools to execute, evaluate, and statistically analyze multi-agent interactions under adversarial conditions. It benchmarks system resilience against key threats using empirical statistical metrics like Wilcoxon signed-rank tests with Holm-Bonferroni corrections, Cliff’s Delta effect sizes, and Krippendorff’s Alpha inter-rater reliability.
+
+---
+
+## Key Features
+
+* **Multi-Framework Testbed**: Integrated support for agent orchestration using `AutoGen`, `CrewAI`, and `LangGraph` across diverse LLM backends (`Claude Opus 4.7`, `GPT-class`, `Llama-class`).
+
+
+* **Adversarial Attack Corpus**: Automated generation of over 450 attack variants covering 8 distinct security threat categories:
+
+
+* **A1**: Direct Prompt Injection
+
+
+* **A2**: Indirect Prompt Injection
+
+
+* **A3**: Inter-Agent Prompt Infection
+
+
+* **A4**: Tool Poisoning
+
+
+* **A5**: Capability Over-Claiming
+
+
+* **A6**: Byzantine Agent Behavior
+
+
+* **A7**: Sybil and Collusion Attacks
+
+
+* **A8**: Data Exfiltration (Trifecta)
+
+
+
+
+* **Baseline Configuration Comparisons**:
+* `B1_unhardened`: Standard baseline without trust mechanisms.
+
+
+* `B2_best_practice`: Standard safety filtering and sanitization.
+
+
+* `B3_ARGUS`: High-assurance verifiable trust and provenance framework.
+
+
+
+
+* **Rigorous Metric Suite**: Evaluates Attack Success Rate (ASR), Privacy Leakage Rate (PLR), Task Utility (TU), Communication Latency, Trust Convergence Time, and Rater Auditability Scores.
+
+
+* **Statistical Analysis Pipeline**: Integrated automated statistical non-parametric hypothesis testing with effect size calculation and inter-rater reliability scoring.
+
+
+
+---
+
+## Project Architecture
+
+```text
+├── main.py                     # Primary execution script (Testbed, Attack Corpus, Evaluation)
+├── requirements.txt            # Dependency configuration file
+└── README.md                   # Project documentation and setup guide
+
+```
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+Ensure system requirements are met before proceeding:
+
+* **Python**: `3.9` or higher
+* **Package Manager**: `pip` (or `conda`)
+
+### Step 1: Clone or Set Up the Project Directory
+
+Create a directory for the project and navigate into it:
+
+```bash
+mkdir verifiable-trust-framework
+cd verifiable-trust-framework
+
+```
+
+### Step 2: Set Up a Virtual Environment
+
+It is recommended to use a virtual environment to manage dependencies cleanly.
+
+**On Linux/macOS:**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+
+```
+
+**On Windows:**
+
+```cmd
+python -m venv venv
+venv\Scripts\activate
+
+```
+
+### Step 3: Install Required Dependencies
+
+Create a `requirements.txt` file in your root project directory with the following content:
+
+```text
+numpy>=1.22.0
+scipy>=1.8.0
+statsmodels>=0.13.0
+krippendorff>=0.5.0
+
+```
+
+Install the required packages using `pip`:
+
+```bash
+pip install -r requirements.txt
+
+```
+
+---
+
+## Running Experiments
+
+Save the framework script as `main.py`.
+
+### Quick Demonstration Run
+
+By default, running the main file initializes a scaled-down attack corpus (2 variants per category = 16 attacks) for fast execution and validation:
+
+```bash
+python main.py
+
+```
+
+### Full Benchmark Execution
+
+To run the complete benchmark suite matching the publication paper (~450 attacks across 8 categories over 30 independent trials):
+
+1. Open `main.py` in an editor.
+
+
+2. Locate the execution entry point near line 186:
+
+
+```python
+attacks = generate_attack_corpus(variants_per_category=2)
+
+```
+
+
+3. Change `variants_per_category=2` to `variants_per_category=50`:
+
+
+```python
+attacks = generate_attack_corpus(variants_per_category=50)
+
+```
+
+
+4. Re-run the main evaluation pipeline:
+
+
+```bash
+python main.py
+
+```
+
+
+
+---
+
+## Output Metrics Explanation
+
+The framework automatically reports:
+
+1. **Krippendorff’s Alpha ($\alpha$)**: Evaluates inter-rater agreement on system auditability ratings across independent human/AI reviewers.
+
+
+2. **Wilcoxon Signed-Rank Test ($p$-values)**: Measures statistical significance of performance differences between baseline pairs (`B1 vs B2`, `B1 vs B3`) corrected using the Holm-Bonferroni method.
+
+
+3. **Cliff’s Delta ($\delta$)**: Non-parametric effect size quantifying the magnitude of difference between baselines (positive values indicate relative improvement).
+
+
+4. **Metric Breakdown**: Summarized global and per-category stats across Attack Success Rate (ASR), Privacy Leakage Rate (PLR), Task Utility (TU), Trust Convergence Rounds, and Communication Overhead (latency in ms).
